@@ -1,9 +1,9 @@
 from fastapi.testclient import TestClient
 
-import main
-from main import app
-from repositories.items import ItemRepository
-from repositories.users import UserRepository
+import app.main as main
+from app.main import app
+from app.repositories.items import ItemRepository
+from app.repositories.users import UserRepository
 
 
 class FakeModel:

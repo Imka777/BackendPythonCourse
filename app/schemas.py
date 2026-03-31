@@ -1,3 +1,5 @@
+from typing import Literal, Optional
+
 from pydantic import BaseModel, Field, StrictBool, StrictInt, StrictStr
 
 
@@ -14,3 +16,21 @@ class PredictRequest(BaseModel):
 class PredictResponse(BaseModel):
     is_violation: bool
     probability: float = Field(..., ge=0.0, le=1.0)
+
+
+class AsyncPredictRequest(BaseModel):
+    item_id: StrictInt = Field(..., gt=0)
+
+
+class AsyncPredictResponse(BaseModel):
+    task_id: int
+    status: Literal["pending"]
+    message: str
+
+
+class ModerationResultResponse(BaseModel):
+    task_id: int
+    status: Literal["pending", "completed", "failed"]
+    is_violation: Optional[bool] = None
+    probability: Optional[float] = None
+    error_message: Optional[str] = None

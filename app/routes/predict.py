@@ -3,10 +3,10 @@ import logging
 
 from fastapi import APIRouter, HTTPException, Query, Request
 
-from repositories.items import ItemRepository
-from repositories.users import UserRepository
-from schemas import PredictRequest, PredictResponse
-from services.prediction import build_predict_request_from_db, predict_violation
+from app.repositories.items import ItemRepository
+from app.repositories.users import UserRepository
+from app.schemas import PredictRequest, PredictResponse
+from app.services.prediction import build_predict_request_from_db, predict_violation
 
 router = APIRouter()
 logger = logging.getLogger(__name__)

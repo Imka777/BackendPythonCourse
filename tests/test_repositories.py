@@ -2,9 +2,9 @@ import os
 import pytest
 import pytest_asyncio
 
-from db import close_pool, create_pool
-from repositories.items import ItemRepository
-from repositories.users import UserRepository
+from app.db import close_pool, create_pool
+from app.repositories.items import ItemRepository
+from app.repositories.users import UserRepository
 
 
 TEST_DB_URL = os.getenv(

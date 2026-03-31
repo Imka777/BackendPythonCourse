@@ -1,7 +1,7 @@
 import logging
 import numpy as np
 
-from schemas import PredictRequest, PredictResponse
+from app.schemas import PredictRequest, PredictResponse
 
 logger = logging.getLogger(__name__)
 
