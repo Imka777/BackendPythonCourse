@@ -44,3 +44,15 @@ def predict_violation(model, payload: PredictRequest) -> PredictResponse:
         is_violation=prediction,
         probability=probability,
     )
+
+
+def build_predict_request_from_db(user: dict, item: dict) -> PredictRequest:
+    return PredictRequest(
+        seller_id=user["seller_id"],
+        is_verified_seller=user["is_verified_seller"],
+        item_id=item["item_id"],
+        name=item["name"],
+        description=item["description"],
+        category=item["category"],
+        images_qty=item["images_qty"],
+    )
