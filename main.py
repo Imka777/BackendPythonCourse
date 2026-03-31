@@ -1,34 +1,49 @@
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel, Field, StrictBool, StrictInt, StrictStr 
+import logging
+import os
+from contextlib import asynccontextmanager
 
-app = FastAPI(title="Ads Moderation Service")
+from fastapi import FastAPI
+
+from model import load_model, save_model, train_model
+from routes.predict import router as predict_router
+
+MODEL_PATH = "model.pkl"
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
+)
+
+logger = logging.getLogger(__name__)
 
 
-class PredictRequest(BaseModel):
-    seller_id: StrictInt = Field(..., gt=0)
-    is_verified_seller: StrictBool
-    item_id: StrictInt = Field(..., gt=0)
-    name: StrictStr = Field(..., min_length=1)
-    description: StrictStr = Field(..., min_length=1)
-    category: StrictInt = Field(..., gt=0)
-    images_qty: StrictInt = Field(..., ge=0)
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    try:
+        if os.path.exists(MODEL_PATH):
+            app.state.model = load_model(MODEL_PATH)
+            logger.info("Model loaded from %s", MODEL_PATH)
+        else:
+            logger.info("Model file not found. Training new model...")
+            model = train_model()
+            save_model(model, MODEL_PATH)
+            app.state.model = model
+            logger.info("Model trained and saved to %s", MODEL_PATH)
+    except Exception:
+        logger.exception("Failed to initialize model")
+        app.state.model = None
+
+    yield
 
 
-def predict_violation(payload: PredictRequest) -> bool:
-    if payload.is_verified_seller:
-        return False
+app = FastAPI(
+    title="Ads Moderation Service",
+    lifespan=lifespan,
+)
 
-    return payload.images_qty == 0
+app.include_router(predict_router)
 
 
 @app.get("/")
 async def root():
-    return {"message": "Hello World"}
-
-
-@app.post("/predict", response_model=bool)
-async def predict(payload: PredictRequest) -> bool:
-    try:
-        return predict_violation(payload)
-    except Exception:
-        raise HTTPException(status_code=500, detail="Internal prediction error")
+    return {"message": "Ads Moderation Service is running"}

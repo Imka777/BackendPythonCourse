@@ -1,7 +1,18 @@
 from fastapi.testclient import TestClient
-import main
 
-client = TestClient(main.app)
+from main import app
+
+
+class FakeModel:
+    def __init__(self, prediction, probability):
+        self.prediction = prediction
+        self.probability = probability
+
+    def predict(self, features):
+        return [self.prediction]
+
+    def predict_proba(self, features):
+        return [[1 - self.probability, self.probability]]
 
 
 def valid_payload(**overrides):
@@ -10,59 +21,62 @@ def valid_payload(**overrides):
         "is_verified_seller": False,
         "item_id": 100,
         "name": "Ноутбук",
-        "description": "Хорошее состояние",
+        "description": "Отличное состояние",
         "category": 10,
-        "images_qty": 1,
+        "images_qty": 2,
     }
     payload.update(overrides)
     return payload
 
 
-def test_predict_positive_result():
-    response = client.post(
-        "/predict",
-        json=valid_payload(is_verified_seller=False, images_qty=0),
-    )
-
-    assert response.status_code == 200
-    assert response.json() is True
-
-
-def test_predict_negative_result():
-    response = client.post(
-        "/predict",
-        json=valid_payload(is_verified_seller=True, images_qty=0),
-    )
-
-    assert response.status_code == 200
-    assert response.json() is False
+def test_predict_success():
+    with TestClient(app) as client:
+        response = client.post("/predict", json=valid_payload())
+        
+        assert response.status_code == 200
+        assert isinstance(response.json()["is_violation"], bool)
+        assert isinstance(response.json()["probability"], float)
 
 
-def test_validation_missing_required_field():
-    payload = valid_payload()
-    payload.pop("seller_id")
+def test_predict_success_true():
+    with TestClient(app) as client:
+        client.app.state.model = FakeModel(prediction=1, probability=0.91)
 
-    response = client.post("/predict", json=payload)
+        response = client.post("/predict", json=valid_payload())
 
-    assert response.status_code == 422
-
-
-def test_validation_wrong_type():
-    response = client.post(
-        "/predict",
-        json=valid_payload(images_qty="many"),
-    )
-
-    assert response.status_code == 422
+        assert response.status_code == 200
+        data = response.json()
+        assert data["is_violation"] is True
+        assert data["probability"] == 0.91
 
 
-def test_business_logic_error(monkeypatch):
-    def mock_predict_violation(_payload):
-        raise RuntimeError("Unexpected business error")
+def test_predict_success_false():
+    with TestClient(app) as client:
+        client.app.state.model = FakeModel(prediction=0, probability=0.08)
 
-    monkeypatch.setattr(main, "predict_violation", mock_predict_violation)
+        response = client.post("/predict", json=valid_payload())
 
-    response = client.post("/predict", json=valid_payload())
+        assert response.status_code == 200
+        data = response.json()
+        assert data["is_violation"] is False
+        assert data["probability"] == 0.08
 
-    assert response.status_code == 500
-    assert response.json() == {"detail": "Internal prediction error"}
+
+def test_predict_validation_error_wrong_type():
+    with TestClient(app) as client:
+        response = client.post(
+            "/predict",
+            json=valid_payload(images_qty="many")
+        )
+
+        assert response.status_code == 422
+
+
+def test_predict_model_unavailable():
+    with TestClient(app) as client:
+        client.app.state.model = None
+
+        response = client.post("/predict", json=valid_payload())
+
+        assert response.status_code == 503
+        assert response.json() == {"detail": "Model is not available"}
