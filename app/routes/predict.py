@@ -14,8 +14,14 @@ logger = logging.getLogger(__name__)
 
 @router.post("/predict", response_model=PredictResponse)
 async def predict(payload: PredictRequest, request: Request) -> PredictResponse:
-    model = getattr(request.app.state, "model", None)
+    cache = getattr(request.app.state, "prediction_cache", None)
 
+    if cache is not None:
+        cached = await cache.get_item_prediction(payload.item_id)
+        if cached is not None:
+            return PredictResponse(**cached)
+
+    model = getattr(request.app.state, "model", None)
     if model is None:
         raise HTTPException(
             status_code=503,
@@ -23,7 +29,12 @@ async def predict(payload: PredictRequest, request: Request) -> PredictResponse:
         )
 
     try:
-        return predict_violation(model, payload)
+        result = predict_violation(model, payload)
+
+        if cache is not None:
+            await cache.set_item_prediction(payload.item_id, result.model_dump())
+
+        return result
     except Exception:
         logger.exception(
             "Prediction failed for seller_id=%s item_id=%s",
@@ -36,11 +47,19 @@ async def predict(payload: PredictRequest, request: Request) -> PredictResponse:
         )
 
 
+
 @router.get("/simple_predict", response_model=PredictResponse)
 async def simple_predict(
     item_id: int = Query(..., gt=0),
     request: Request = None,
 ) -> PredictResponse:
+    cache = getattr(request.app.state, "prediction_cache", None)
+
+    if cache is not None:
+        cached = await cache.get_item_prediction(item_id)
+        if cached is not None:
+            return PredictResponse(**cached)
+
     model = getattr(request.app.state, "model", None)
     pool = getattr(request.app.state, "db_pool", None)
 
@@ -64,7 +83,12 @@ async def simple_predict(
     payload = build_predict_request_from_db(user, item)
 
     try:
-        return predict_violation(model, payload)
+        result = predict_violation(model, payload)
+
+        if cache is not None:
+            await cache.set_item_prediction(item_id, result.model_dump())
+
+        return result
     except Exception:
         logger.exception("Simple prediction failed for item_id=%s", item_id)
         raise HTTPException(status_code=500, detail="Internal prediction error")

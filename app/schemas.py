@@ -34,3 +34,13 @@ class ModerationResultResponse(BaseModel):
     is_violation: Optional[bool] = None
     probability: Optional[float] = None
     error_message: Optional[str] = None
+
+
+class CloseItemRequest(BaseModel):
+    item_id: StrictInt = Field(..., gt=0)
+
+
+class CloseItemResponse(BaseModel):
+    item_id: int
+    status: Literal["closed"]
+    message: str

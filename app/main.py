@@ -5,10 +5,13 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from app.clients.kafka import KafkaClient
+from app.clients.redis import close_redis, create_redis
 from app.db import close_pool, create_pool
 from app.model import load_model, save_model, train_model
 from app.routes.async_moderation import router as async_moderation_router
+from app.routes.items import router as items_router
 from app.routes.predict import router as predict_router
+from app.storages.prediction_cache import PredictionCacheStorage
 
 MODEL_PATH = os.getenv("MODEL_PATH", "model.pkl")
 KAFKA_BOOTSTRAP_SERVERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
@@ -26,6 +29,8 @@ async def lifespan(app: FastAPI):
     app.state.model = None
     app.state.db_pool = None
     app.state.kafka_producer = None
+    app.state.redis = None
+    app.state.prediction_cache = None
 
     try:
         if os.path.exists(MODEL_PATH):
@@ -57,6 +62,15 @@ async def lifespan(app: FastAPI):
         logger.exception("Failed to initialize Kafka producer")
         app.state.kafka_producer = None
 
+    try:
+        app.state.redis = await create_redis()
+        app.state.prediction_cache = PredictionCacheStorage(app.state.redis)
+        logger.info("Redis cache initialized")
+    except Exception:
+        logger.exception("Failed to initialize Redis cache")
+        app.state.redis = None
+        app.state.prediction_cache = None
+
     yield
 
     try:
@@ -72,6 +86,12 @@ async def lifespan(app: FastAPI):
     except Exception:
         logger.exception("Failed to close database pool")
 
+    try:
+        await close_redis(app.state.redis)
+        logger.info("Redis client closed")
+    except Exception:
+        logger.exception("Failed to close Redis client")
+
 
 app = FastAPI(
     title="Ads Moderation Service",
@@ -80,6 +100,7 @@ app = FastAPI(
 
 app.include_router(predict_router)
 app.include_router(async_moderation_router)
+app.include_router(items_router)
 
 
 @app.get("/")

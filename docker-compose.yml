@@ -33,3 +33,16 @@ services:
       - "8080:8080"
     depends_on:
       - redpanda
+
+  redis:
+    image: redis:latest
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./redis_dаta/data:/root/redis
+      - ./redis_dаta/redis.conf:/usr/local/etc/redis/redis.conf
+    environment:
+      - REDIS_PORT=6379
+      - REDIS_DATABASES=1
+

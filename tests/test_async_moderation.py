@@ -72,7 +72,7 @@ def test_moderation_result_returns_status(monkeypatch):
     async def fake_get_by_id(self, task_id: int):
         return {
             "id": task_id,
-            "item_id": 100,
+            "item_id": 10289,
             "status": "completed",
             "is_violation": True,
             "probability": 0.87,
@@ -85,6 +85,7 @@ def test_moderation_result_returns_status(monkeypatch):
 
     with TestClient(app) as client:
         client.app.state.db_pool = object()
+        client.app.state.prediction_cache = None
 
         response = client.get("/moderation_result/123")
 

@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 async def async_predict(payload: AsyncPredictRequest, request: Request):
     pool = getattr(request.app.state, "db_pool", None)
     kafka_producer = getattr(request.app.state, "kafka_producer", None)
+    cache = getattr(request.app.state, "prediction_cache", None)
 
     if pool is None:
         raise HTTPException(status_code=503, detail="Database is not available")
@@ -38,6 +39,18 @@ async def async_predict(payload: AsyncPredictRequest, request: Request):
 
     task = await moderation_repository.create_pending(payload.item_id)
 
+    if cache is not None:
+        await cache.set_task_result(
+            task["id"],
+            {
+                "task_id": task["id"],
+                "status": "pending",
+                "is_violation": None,
+                "probability": None,
+                "error_message": None,
+            },
+        )
+
     try:
         await kafka_producer.send_moderation_request(
             item_id=payload.item_id,
@@ -45,7 +58,20 @@ async def async_predict(payload: AsyncPredictRequest, request: Request):
         )
     except Exception as exc:
         logger.exception("Failed to send moderation request to Kafka")
-        await moderation_repository.update_failed(task["id"], str(exc))
+        failed_row = await moderation_repository.update_failed(task["id"], str(exc))
+
+        if cache is not None:
+            await cache.set_task_result(
+                task["id"],
+                {
+                    "task_id": failed_row["id"],
+                    "status": failed_row["status"],
+                    "is_violation": failed_row["is_violation"],
+                    "probability": failed_row["probability"],
+                    "error_message": failed_row["error_message"],
+                },
+            )
+
         raise HTTPException(status_code=500, detail="Failed to enqueue moderation request")
 
     return AsyncPredictResponse(
@@ -64,6 +90,12 @@ async def moderation_result(
     request: Request = None,
 ):
     pool = getattr(request.app.state, "db_pool", None)
+    cache = getattr(request.app.state, "prediction_cache", None)
+
+    if cache is not None:
+        cached = await cache.get_task_result(task_id)
+        if cached is not None:
+            return ModerationResultResponse(**cached)
 
     if pool is None:
         raise HTTPException(status_code=503, detail="Database is not available")
@@ -74,10 +106,15 @@ async def moderation_result(
     if row is None:
         raise HTTPException(status_code=404, detail="Moderation task not found")
 
-    return ModerationResultResponse(
+    response = ModerationResultResponse(
         task_id=row["id"],
         status=row["status"],
         is_violation=row["is_violation"],
         probability=row["probability"],
         error_message=row["error_message"],
     )
+
+    if cache is not None:
+        await cache.set_task_result(task_id, response.model_dump())
+
+    return response

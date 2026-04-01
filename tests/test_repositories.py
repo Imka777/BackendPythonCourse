@@ -14,6 +14,7 @@ TEST_DB_URL = os.getenv(
 
 
 CREATE_SCHEMA_SQL = """
+DROP TABLE IF EXISTS moderation_results;
 DROP TABLE IF EXISTS items;
 DROP TABLE IF EXISTS users;
 
@@ -28,11 +29,13 @@ CREATE TABLE items (
     name TEXT NOT NULL,
     description TEXT NOT NULL,
     category INTEGER NOT NULL CHECK (category > 0),
-    images_qty INTEGER NOT NULL CHECK (images_qty >= 0)
+    images_qty INTEGER NOT NULL CHECK (images_qty >= 0),
+    is_closed BOOLEAN NOT NULL DEFAULT FALSE
 );
 """
 
 DROP_SCHEMA_SQL = """
+DROP TABLE IF EXISTS moderation_results;
 DROP TABLE IF EXISTS items;
 DROP TABLE IF EXISTS users;
 """

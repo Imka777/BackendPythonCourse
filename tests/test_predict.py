@@ -31,7 +31,7 @@ def valid_payload(**overrides):
 
 def test_predict_success():
     with TestClient(app) as client:
-        response = client.post("/predict", json=valid_payload())
+        response = client.post("/predict", json=valid_payload(item_id=10021))
         
         assert response.status_code == 200
         assert isinstance(response.json()["is_violation"], bool)
@@ -42,7 +42,7 @@ def test_predict_success_true():
     with TestClient(app) as client:
         client.app.state.model = FakeModel(prediction=1, probability=0.91)
 
-        response = client.post("/predict", json=valid_payload())
+        response = client.post("/predict", json=valid_payload(item_id=10022))
 
         assert response.status_code == 200
         data = response.json()
@@ -54,7 +54,7 @@ def test_predict_success_false():
     with TestClient(app) as client:
         client.app.state.model = FakeModel(prediction=0, probability=0.08)
 
-        response = client.post("/predict", json=valid_payload())
+        response = client.post("/predict", json=valid_payload(item_id=10023))
 
         assert response.status_code == 200
         data = response.json()
@@ -76,7 +76,7 @@ def test_predict_model_unavailable():
     with TestClient(app) as client:
         client.app.state.model = None
 
-        response = client.post("/predict", json=valid_payload())
+        response = client.post("/predict", json=valid_payload(item_id=10024))
 
         assert response.status_code == 503
         assert response.json() == {"detail": "Model is not available"}

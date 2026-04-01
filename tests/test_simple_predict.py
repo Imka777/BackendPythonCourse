@@ -51,7 +51,7 @@ def test_simple_predict_success_true(monkeypatch):
     with TestClient(app) as client:
         client.app.state.model = FakeModel(prediction=1, probability=0.93)
 
-        response = client.get("/simple_predict", params={"item_id": 100})
+        response = client.get("/simple_predict", params={"item_id": 10541})
 
         assert response.status_code == 200
         data = response.json()
@@ -84,7 +84,7 @@ def test_simple_predict_success_false(monkeypatch):
     with TestClient(app) as client:
         client.app.state.model = FakeModel(prediction=0, probability=0.07)
 
-        response = client.get("/simple_predict", params={"item_id": 101})
+        response = client.get("/simple_predict", params={"item_id": 10542})
 
         assert response.status_code == 200
         data = response.json()

@@ -22,30 +22,45 @@
 ├── main.py
 ├── docker-compose.yml
 ├── requirements.txt
+├── pytest.ini
 ├── migrations/
 │   ├── 001_init.up.sql
 │   ├── 002_moderation_results.up.sql
+│   └── 003_add_is_closed.up.sql
 ├── app/
 │   ├── main.py
 │   ├── db.py
 │   ├── model.py
 │   ├── schemas.py
 │   ├── clients/
-│   │   └── kafka.py
+│   │   ├── kafka.py
+│   │   └── redis.py
 │   ├── repositories/
 │   │   ├── users.py
 │   │   ├── items.py
 │   │   └── moderation_results.py
 │   ├── routes/
 │   │   ├── predict.py
-│   │   └── async_moderation.py
+│   │   ├── async_moderation.py
+│   │   └── items.py
 │   ├── services/
 │   │   └── prediction.py
+│   ├── storages/
+│   │   └── prediction_cache.py
 │   └── workers/
 │       └── moderation_worker.py
 └── tests/
+    ├── test_predict.py
+    ├── test_simple_predict.py
     ├── test_async_moderation.py
-    └── test_worker.py
+    ├── test_worker.py
+    ├── test_predict_cache_unit.py
+    ├── test_moderation_result_cache_unit.py
+    ├── test_close_item_unit.py
+    └── integration/
+        ├── test_prediction_cache_integration.py
+        └── test_postgres_repositories_integration.py
+
 ```
 
 ---

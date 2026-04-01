@@ -45,3 +45,13 @@ class ModerationResultRepository:
         """
         row = await self.pool.fetchrow(query, task_id, error_message)
         return dict(row) if row else None
+
+    async def list_task_ids_by_item_id(self, item_id: int):
+        query = """
+        SELECT id
+        FROM moderation_results
+        WHERE item_id = $1
+        ORDER BY id
+        """
+        rows = await self.pool.fetch(query, item_id)
+        return [row["id"] for row in rows]
